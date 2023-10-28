@@ -39,9 +39,9 @@ void odd_even_sort_mpi(std::vector<int>& nums) {
     MPI_Get_processor_name(processor_name, &name_len);
 
     // Init array
-    int n = nums.size() / world_size;
-    int l = n * world_rank;
-    int r = l + n;
+    int n = nums.size();
+    int l = 0; //n * world_rank;
+    int r = n; //l + n;
     bool is_sorted = false;
     while (!is_sorted) {
         is_sorted = true;
@@ -54,13 +54,17 @@ void odd_even_sort_mpi(std::vector<int>& nums) {
             }
         }
         // comm
-        int x;
+        MPI_Status status;
+        int x, y;
         if (world_rank == 1) {
             x = nums[l];
             MPI_Ssend(&x, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            MPI_Recv(&y, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
         } else if (world_rank == 0) {
-            MPI_Status status;
+            y = nums[r - 1];
             MPI_Recv(&x, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &status);
+            MPI_Ssend(&y, 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
+            // std::cout << "get ->" << x << std::endl;
         }
         // odd phase
         for (i = l + 1; i + 1 < r; i += 2) {
@@ -74,7 +78,21 @@ void odd_even_sort_mpi(std::vector<int>& nums) {
                 std::swap(nums[i], x);
                 is_sorted = false;
             }
+        } else {
+            if (y > nums[l]) {
+                std::swap(nums[l], y);
+                is_sorted = false;
+            }
         }
-        MPI_Allreduce(&is_sorted, &is_sorted, 1, MPI_C_BOOL, MPI_LAND, MPI_COMM_WORLD);
+    // if (world_rank == 0) {
+    //     std::cout << "mid 0:" << std::endl;
+    //     for (int i = 0; i < n; i++) {
+    //         std::cout << nums[i] << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
+        bool b_rec;
+        MPI_Allreduce(&is_sorted, &b_rec, 1, MPI_C_BOOL, MPI_LAND, MPI_COMM_WORLD);
+        is_sorted = is_sorted && b_rec;
     }
 }

@@ -4,5 +4,4 @@ fi
 mkdir build
 cd build
 CC=mpicc CXX=mpicxx cmake ..
-# cmake ..
 make

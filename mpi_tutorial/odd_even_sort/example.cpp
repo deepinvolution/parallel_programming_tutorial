@@ -1,73 +1,55 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include <time.h>
+
+#include "utils.hpp"
 #include "odd_even_sort.hpp"
 
 int main(int argc, char** argv) {
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
-
-    // Get the number of processes
-    int world_size;
+    int world_size, world_rank;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-
-    // Get the rank of the process
-    int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-    // std::cout << "process: " << world_rank << "/" << world_size << std::endl;
+    // Get the name of the processor
+    // char processor_name[MPI_MAX_PROCESSOR_NAME];
+    // int name_len;
+    // MPI_Get_processor_name(processor_name, &name_len);
 
-    // init vector
-    int total_elements = 8;
-    int n = total_elements / world_size;
+    // Init and compute data
+    int total_elements = 10;
+    int q = total_elements / world_size;
+    int r = total_elements % world_size;
+    int n = q + (world_rank < r);
     std::vector<int> nums(n);
-    if (world_rank == 0) {
-        std::vector<int> total_data(total_elements);
-        std::vector<int> golden(total_elements);
-        srand(time(NULL));
-        for (int i = 0; i < total_elements; i++)
-            total_data[i] = golden[i] = rand() % 10;
-        std::sort(golden.begin(), golden.end());
-        std::cout << "golden:" << std::endl;
-        for (int i = 0; i < total_elements; i++) {
-            std::cout << golden[i] << " ";
-        }
-        std::cout << std::endl;
-        for (int i = 0; i < n; i++) {
-            nums[i] = total_data[i];
-        }
-        MPI_Ssend(total_data.data() + n, n, MPI_INT, 1, 0, MPI_COMM_WORLD);
-        std::cout << "before:" << std::endl;
-        for (int i = 0; i < total_elements; i++) {
-            std::cout << total_data[i] << " ";
-        }
-        std::cout << std::endl;
-    } else {
-        MPI_Status status;
-        MPI_Recv(nums.data(), n, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
-    }
-    odd_even_sort_mpi(nums);
-    // if (world_rank == 0) {
-    //     MPI_Status status;
-    //     MPI_Recv(nums.data()+n/2, n/2, MPI_INT, 1, 0, MPI_COMM_WORLD, &status);
-    // } else {
-    //     MPI_Ssend(nums.data()+n/2, n/2, MPI_INT, 0, 0, MPI_COMM_WORLD);
-    // }
+    mpi_init_data(nums);
+    odd_even_sort_mpi(nums, q, r);
+    MPI_Barrier(MPI_COMM_WORLD);
 
-    // compare golden
+    // Collect result
     if (world_rank == 0) {
-        std::cout << "after 0:" << std::endl;
-        for (int i = 0; i < n; i++) {
-            std::cout << nums[i] << " ";
+        std::vector<int> res(total_elements);
+        MPI_Status status;
+        for (int i = 0; i < n; i++)
+            res[i] = nums[i];
+        auto p = res.data() + n;
+        for (int i = 1; i < world_size; i++) {
+            if (r == 0 || (r != 0 && i < r)) {
+                MPI_Recv(p, n, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+                p += n;
+            } else {
+                MPI_Recv(p, n - 1, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+                p += n - 1;
+            }
+        }
+        std::cout << "res:" << std::endl;
+        for (int i = 0; i < total_elements; i++) {
+            std::cout << res[i] << " ";
         }
         std::cout << std::endl;
     } else {
-        std::cout << "after 1:" << std::endl;
-        for (int i = 0; i < n; i++) {
-            std::cout << nums[i] << " ";
-        }
-        std::cout << std::endl;
+        MPI_Ssend(nums.data(), n, MPI_INT, 0, 0, MPI_COMM_WORLD);
     }
 
     // Finalize the MPI environment.

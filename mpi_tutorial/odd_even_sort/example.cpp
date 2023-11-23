@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     int total_element = 0;
     std::vector<int> data_all;
     if (world_rank == 0) {
-        read_bin_data("data.bin", data_all);
+        read_bin_data("./data.bin", data_all);
         total_element = data_all.size();
         std::cout << "Input data: " << std::endl;
         for (int x : data_all) std::cout << x << " ";

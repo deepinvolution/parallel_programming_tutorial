@@ -1,5 +1,16 @@
 #!/bin/sh
 
-python3 generate_data.py
+NUM_DATA=100
+NUM_PROCESS=4
+IN_FILE="in.bin"
+OUT_FILE="out.bin"
+
+if [ -f "./build/$IN_FILE" ]; then
+  rm "./build/$IN_FILE"
+fi
+if [ -f "./build/$OUT_FILE" ]; then
+  rm "./build/$OUT_FILE"
+fi
+python3 generate_data.py $NUM_DATA "./build/$IN_FILE"
 cd build
-mpirun -np 3 ./example
+mpirun -np $NUM_PROCESS ./example $NUM_DATA $IN_FILE $OUT_FILE

@@ -31,17 +31,7 @@ void odd_even_sort_mpi(std::vector<int>& nums) {
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
     // Init array
-    // int n = nums.size();
-    // bool phase = false; // false: even, true: odd
     bool is_sorted = false;
-    // int start_pos, end_pos;
-    // if (world_rank < r) start_pos = world_rank * n;
-    // else start_pos = (n + 1) * r + n * (world_rank + 1 - r);
-    // end_pos = start_pos + n - 1;
-    // int le = start_pos & 1 ? 1 : 0;
-    // int re = end_pos & 1 ? n - 1 : n - 2;
-    // int lo = start_pos & 1 ? 0 : 1;
-    // int ro = end_pos & 1 ? n - 2 : n - 1;
     int l, r;
     while (1) {
         // init

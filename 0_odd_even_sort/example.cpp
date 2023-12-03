@@ -5,8 +5,6 @@
 #include "utils.hpp"
 #include "odd_even_sort.hpp"
 
-// #define TOTAL_ELEMENTS 10
-
 int main(int argc, char** argv) {
     // Initialize the MPI environment
     MPI_Init(NULL, NULL);
@@ -19,9 +17,6 @@ int main(int argc, char** argv) {
     char processor_name[MPI_MAX_PROCESSOR_NAME];
     int name_len;
     MPI_Get_processor_name(processor_name, &name_len);
-    // std::cout << "Processor name: ";
-    // for (int i = 0; i < name_len; i++) std::cout << processor_name[i];
-    // std::cout << std::endl;
 
     // Rank 0 process read input data
     int total_element = 0;

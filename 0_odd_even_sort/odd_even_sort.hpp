@@ -57,7 +57,7 @@ void odd_even_sort(int world_size, int world_rank, std::vector<int>& nums) {
         // odd phase (comm before)
         if (world_rank < world_size - 1) { // sender
             send_data = nums.back();
-            MPI_Ssend(&send_data, 1, MPI_INT, world_rank + 1, 0, MPI_COMM_WORLD);
+            MPI_Send(&send_data, 1, MPI_INT, world_rank + 1, 0, MPI_COMM_WORLD);
             nums.pop_back();
         }
         if (world_rank > 0) { // receiver
@@ -78,7 +78,7 @@ void odd_even_sort(int world_size, int world_rank, std::vector<int>& nums) {
         // odd phase (comm after)
         if (world_rank > 0) { // sender
             send_data = nums.front();
-            MPI_Ssend(&send_data, 1, MPI_INT, world_rank - 1, 0, MPI_COMM_WORLD);
+            MPI_Send(&send_data, 1, MPI_INT, world_rank - 1, 0, MPI_COMM_WORLD);
             nums.erase(nums.begin());
         }
         if (world_rank < world_size - 1) { // receiver

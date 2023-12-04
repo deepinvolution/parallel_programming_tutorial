@@ -31,17 +31,19 @@ void odd_even_sort(int world_size, int world_rank, std::vector<int>& nums) {
     // Convention (2)
     // always send the data to previous process
     // to utilize std::vector push_back() and pop_back()
+    // However, we can't communicate with wrap around rank
+    // according to the specification.
     
     // Init array
     MPI_Status status;
-    bool is_sorted, is_sorted_all;
+    bool is_sorted, is_sorted_all = false;
     int l, r, recv_data, send_data;
     int prev_rank = (world_rank - 1 + world_size) % world_size;
     int next_rank = (world_rank + 1) % world_size;
     int first_rank = 0, last_rank = world_size - 1;
 
     // even and odd loop
-    while (true) {
+    while (!is_sorted_all) {
         // init
         is_sorted = true;
         is_sorted_all = true;
@@ -56,15 +58,19 @@ void odd_even_sort(int world_size, int world_rank, std::vector<int>& nums) {
         // even phase (comm after)
         // // no need -> we've forced each section to be even (n % 2 == 0)
 
-        // reduce is_sorted
-        // MPI_Allreduce(&is_sorted, &is_sorted_all, 1, MPI_C_BOOL, MPI_LAND, MPI_COMM_WORLD);
-        // if (is_sorted_all) break;
-
         // odd phase (comm before)
         send_data = nums.front();
-        MPI_Sendrecv(&send_data, 1, MPI_INT, prev_rank, 0,
-                     &recv_data, 1, MPI_INT, next_rank, 0,
+        if (world_rank == first_rank) {
+            MPI_Recv(&recv_data, 1, MPI_INT, next_rank, 0,
                      MPI_COMM_WORLD, &status);
+        } else if (world_rank == last_rank) {
+            MPI_Send(&send_data, 1, MPI_INT, prev_rank, 0,
+                     MPI_COMM_WORLD);
+        } else {
+            MPI_Sendrecv(&send_data, 1, MPI_INT, prev_rank, 0,
+                         &recv_data, 1, MPI_INT, next_rank, 0,
+                         MPI_COMM_WORLD, &status);
+        }
         nums.push_back(recv_data);
 
         // odd phase (sort)
@@ -74,14 +80,22 @@ void odd_even_sort(int world_size, int world_rank, std::vector<int>& nums) {
 
         // odd phase (comm after)
         send_data = nums.back();
-        MPI_Sendrecv(&send_data, 1, MPI_INT, next_rank, 0,
-                     &recv_data, 1, MPI_INT, prev_rank, 0,
+        if (world_rank == first_rank) {
+            MPI_Send(&send_data, 1, MPI_INT, next_rank, 0,
+                     MPI_COMM_WORLD);
+        } else if (world_rank == last_rank) {
+            MPI_Recv(&recv_data, 1, MPI_INT, prev_rank, 0,
                      MPI_COMM_WORLD, &status);
-        if (world_rank != first_rank) nums[0] = recv_data;
+            nums[0] = recv_data;
+        } else {
+            MPI_Sendrecv(&send_data, 1, MPI_INT, next_rank, 0,
+                         &recv_data, 1, MPI_INT, prev_rank, 0,
+                         MPI_COMM_WORLD, &status);
+            nums[0] = recv_data;
+        }
         nums.pop_back();
 
         // reduce is_sorted
         MPI_Allreduce(&is_sorted, &is_sorted_all, 1, MPI_C_BOOL, MPI_LAND, MPI_COMM_WORLD);
-        if (is_sorted_all) break;
     }
 }

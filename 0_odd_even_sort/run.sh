@@ -1,6 +1,6 @@
 #!/bin/sh
 
-NUM_DATA=371
+NUM_DATA=372
 NUM_PROCESS=4
 IN_FILE="in.bin"
 OUT_FILE="out.bin"

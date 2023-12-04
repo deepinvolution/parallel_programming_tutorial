@@ -4,6 +4,7 @@
 #include <mpi.h>
 #include <time.h>
 
+// cpu version read bin data
 void read_bin_data(int n, std::string path, std::vector<int>& nums) {
     std::ifstream f(path, std::ios::binary);
     if(f.fail())
@@ -12,6 +13,18 @@ void read_bin_data(int n, std::string path, std::vector<int>& nums) {
         f.read((char*)&nums[i], sizeof(int));
 }
 
+// mpi version read bin data
+void read_bin_data(int world_size, int world_rank, int n,
+                   std::string path, int offset, std::vector<int>& nums) {
+    MPI_File f;
+	MPI_File_open(MPI_COMM_WORLD, static_cast<const char*>(path.data()),
+                  MPI_MODE_RDONLY, MPI_INFO_NULL, &f);
+	MPI_File_read_at(f, sizeof(int) * offset, static_cast<void*>(nums.data()),
+                     n, MPI_INT, MPI_STATUS_IGNORE);
+	MPI_File_close(&f);
+}
+
+// cpu version write bin data
 void write_bin_data(int n, std::string path, std::vector<int>& nums) {
     std::ofstream f(path, std::ios::binary);
     if(f.fail())
@@ -20,12 +33,13 @@ void write_bin_data(int n, std::string path, std::vector<int>& nums) {
         f.write((char*)&nums[i], sizeof(int));
 }
 
-void mpi_init_data(std::vector<int>& nums) {
-    int world_size, world_rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-
-    srand(time(NULL) + world_rank);
-    int n = nums.size();
-    for (int i = 0; i < n; i++) nums[i] = rand() % 10;
+// mpi version write bin data
+void write_bin_data(int world_size, int world_rank, int n,
+                    std::string path, int offset, std::vector<int>& nums) {
+    MPI_File f;
+	MPI_File_open(MPI_COMM_WORLD, static_cast<const char*>(path.data()),
+                  MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &f);
+	MPI_File_write_at(f, sizeof(int) * offset, static_cast<void*>(nums.data()),
+                      n, MPI_INT, MPI_STATUS_IGNORE);
+	MPI_File_close(&f);
 }

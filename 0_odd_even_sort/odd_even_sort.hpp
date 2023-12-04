@@ -24,21 +24,16 @@ void odd_even_sort(std::vector<int>& nums) {
     }
 }
 
-void odd_even_sort_mpi(std::vector<int>& nums) {
-    // Get the number of processes
-    int world_size, world_rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-
+void odd_even_sort(int world_size, int world_rank, std::vector<int>& nums) {
+    // Assume nums is always even size
     // Init array
-    bool is_sorted = false;
-    int l, r;
+    MPI_Status status;
+    bool is_sorted, is_sorted_all;
+    int l, r, rec_data, send_data;
     while (1) {
         // init
-        bool is_sorted = true;
-        bool is_sorted_all = true;
-        MPI_Status status;
-        int rec_data, send_data;
+        is_sorted = true;
+        is_sorted_all = true;
 
         // even phase (comm before)
         // // no need -> we've forced each section to be even (n % 2 == 0)
@@ -71,7 +66,6 @@ void odd_even_sort_mpi(std::vector<int>& nums) {
         }
 
         // odd phase (sort)
-        // std::cout << world_rank << " " << nums.size() << std::endl;
         l = 0, r = nums.size() - 1;
         if (world_rank == 0) l++;
         for (int i = l; i + 1 <= r; i += 2) {

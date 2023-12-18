@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
         double y0 = j * grid_height + lower;
         for (int i = 0; i < width; ++i) {
             double x0 = i * grid_width + left;
-            image[j * width + i] = mandelbrot_set(x0, y0);
+            image[j * width + i] = mandelbrot_set(Complex<double>{x0, y0});
         }
     }
     auto end = std::chrono::high_resolution_clock::now();

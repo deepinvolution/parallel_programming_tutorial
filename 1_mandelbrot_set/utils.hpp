@@ -51,9 +51,9 @@ Complex<T> operator*(Complex<T>& lhs, Complex<T>& rhs) {
 }
 
 template <typename T>
-int mandelbrot_set(T x0, T y0) {
+int mandelbrot_set(Complex<T> c0) {
     int iter_count = 0;
-    Complex<T> c0(x0, y0), c(0, 0);
+    Complex<T> c(0, 0);
     while (c.size() <= 4.0 && iter_count < MAX_ITER) {
         c = c * c;
         c = c + c0;

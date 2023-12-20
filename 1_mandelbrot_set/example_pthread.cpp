@@ -7,9 +7,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
-static const size_t num_items   = 50;
+static const size_t num_items = 50;
 
-void* worker(void *arg)
+void* test_func(void *arg)
 {
     int *val = (int*)arg;
     int  old = *val;
@@ -37,16 +37,16 @@ int main(int argc, char** argv) {
     double grid_width = (right - left) / width;
     double grid_height = (upper - lower) / height;
 
-    thread_pool_t* tm = thread_pool_create(num_threads);
+    ThreadPool pool(num_threads);
     int* vals = new int[num_items];
 
     for (int i = 0; i < num_items; i++) {
         vals[i] = i;
-        thread_pool_add_work(tm, worker, vals+i);
+        pool.push(test_func, vals+i);
     }
 
-    thread_pool_wait(tm);
-    thread_pool_destroy(tm);
+    pool.join();
+
     delete vals;
 
     return 0;

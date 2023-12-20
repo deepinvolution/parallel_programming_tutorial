@@ -2,173 +2,106 @@
 #include <queue>
 #include <pthread.h>
 
-#ifndef __TPOOL_H__
-#define __TPOOL_H__
-
-#include <stdbool.h>
-#include <stddef.h>
+#ifndef __THREAD_POOL_H__
+#define __THREAD_POOL_H__
 
 typedef void* (*thread_func_t)(void* arg);
 
-typedef struct thread_pool_work {
-    thread_func_t     func;
-    void*             arg;
-    struct thread_pool_work* next;
-} thread_pool_work_t;
+// TODO: optimize data copy when:
+// (1) task creation (2) pop from queue
+typedef struct thread_pool_task {
+    thread_func_t func;
+    void* arg;
+} thread_pool_task_t;
 
-typedef struct thread_pool {
-    thread_pool_work_t*    work_first;
-    thread_pool_work_t*    work_last;
-    pthread_mutex_t  work_mutex;
-    pthread_cond_t   work_cond;
-    size_t           thread_cnt;
-    bool             stop;
-    pthread_t*       workers;
-} thread_pool_t;
+// Implement a producer-consumer thread pool class
+class ThreadPool {
+public:
+    ThreadPool(int num);
+    ~ThreadPool();
+    bool push(thread_func_t func, void *arg);
+    void join();
 
-static thread_pool_work_t *thread_pool_work_create(thread_func_t func, void *arg)
-{
-    thread_pool_work_t *work;
+private:
+    // shared data
+    std::vector<pthread_t> workers;
+    std::queue<thread_pool_task_t> tasks;
 
-    if (func == nullptr) return nullptr;
+    // mutex and cond to protect shared data
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
 
-    work       = new thread_pool_work_t;
-    work->func = func;
-    work->arg  = arg;
-    work->next = NULL;
-    return work;
-}
+    // state of thread pool
+    bool terminate;
 
-static void thread_pool_work_destroy(thread_pool_work_t *work)
-{
-    if (work == nullptr) return;
-    delete work;
-}
+    // opague function for threads' routine
+    static void* thread_pool_worker(void* arg);
+};
 
-static thread_pool_work_t *thread_pool_work_get(thread_pool_t *tm)
-{
-    thread_pool_work_t *work;
-
-    if (tm == nullptr) return nullptr;
-
-    work = tm->work_first;
-    if (work == nullptr) return nullptr;
-
-    if (work->next == nullptr) {
-        tm->work_first = nullptr;
-        tm->work_last  = nullptr;
-    } else {
-        tm->work_first = work->next;
-    }
-
-    return work;
-}
-
-static void* thread_pool_worker(void* arg)
-{
-    thread_pool_t      *tm = (thread_pool_t*)arg;
-    thread_pool_work_t *work;
+void* ThreadPool::thread_pool_worker(void* arg) {
+    ThreadPool* pool = (ThreadPool*)arg;
+    thread_pool_task_t task;
 
     while (true) {
-        pthread_mutex_lock(&(tm->work_mutex));
+        pthread_mutex_lock(&(pool->mutex));
 
-        while (tm->work_first == nullptr && !tm->stop)
-            pthread_cond_wait(&(tm->work_cond), &(tm->work_mutex));
+        while (pool->tasks.empty() && !pool->terminate)
+            pthread_cond_wait(&(pool->cond), &(pool->mutex));
 
-        work = thread_pool_work_get(tm);
-
-        pthread_mutex_unlock(&(tm->work_mutex));
-
-        if (tm->stop && !work) break;
-
-        if (work) {
-            work->func(work->arg);
-            thread_pool_work_destroy(work);
+        bool get_empty_task = false;
+        if (pool->tasks.empty()) {
+            get_empty_task = true;
+        } else {
+            task = pool->tasks.front();
+            pool->tasks.pop();
         }
+
+        pthread_mutex_unlock(&(pool->mutex));
+
+        if (pool->terminate && get_empty_task) break;
+
+        if (!get_empty_task) task.func(task.arg);
     }
     pthread_exit(nullptr);
 }
 
-thread_pool_t *thread_pool_create(size_t num)
-{
-    thread_pool_t   *tm;
-    pthread_t  thread;
+ThreadPool::ThreadPool(int num) {
+    workers.resize(num);
+    pthread_mutex_init(&mutex, NULL);
+    pthread_cond_init(&cond, NULL);
 
-    tm             = new thread_pool_t;
-    tm->thread_cnt = num;
-    tm->workers    = new pthread_t[num];
-
-    pthread_mutex_init(&(tm->work_mutex), NULL);
-    pthread_cond_init(&(tm->work_cond), NULL);
-
-    tm->work_first = NULL;
-    tm->work_last  = NULL;
-
+    workers.resize(num);
     for (int i = 0; i < num; i++)
-        pthread_create(&tm->workers[i], NULL, thread_pool_worker, tm);
-
-    return tm;
+        pthread_create(&workers[i], nullptr, &ThreadPool::thread_pool_worker, this);
 }
 
-void thread_pool_destroy(thread_pool_t *tm)
-{
-    thread_pool_work_t *work;
-    thread_pool_work_t *work2;
-
-    if (tm == NULL)
-        return;
-
-    pthread_mutex_lock(&(tm->work_mutex));
-    work = tm->work_first;
-    while (work != NULL) {
-        work2 = work->next;
-        thread_pool_work_destroy(work);
-        work = work2;
-    }
-    tm->stop = true;
-    pthread_cond_broadcast(&(tm->work_cond));
-    pthread_mutex_unlock(&(tm->work_mutex));
-
-    pthread_mutex_destroy(&(tm->work_mutex));
-    pthread_cond_destroy(&(tm->work_cond));
-
-    free(tm);
+ThreadPool::~ThreadPool() {
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&cond);
 }
 
-bool thread_pool_add_work(thread_pool_t *tm, thread_func_t func, void *arg)
-{
-    thread_pool_work_t *work;
+bool ThreadPool::push(thread_func_t func, void *arg) {
+    if (!func) return false;
 
-    if (tm == nullptr) return false;
+    thread_pool_task_t task;
+    task.func = func;
+    task.arg = arg;
 
-    work = thread_pool_work_create(func, arg);
-    if (work == nullptr) return false;
+    pthread_mutex_lock(&mutex);
+    tasks.push(task);
+    pthread_mutex_unlock(&mutex);
 
-    pthread_mutex_lock(&(tm->work_mutex));
-    if (tm->work_first == NULL) {
-        tm->work_first = work;
-        tm->work_last  = tm->work_first;
-    } else {
-        tm->work_last->next = work;
-        tm->work_last       = work;
-    }
-
-    pthread_mutex_unlock(&(tm->work_mutex));
-    pthread_cond_signal(&(tm->work_cond));
+    pthread_cond_signal(&cond);
 
     return true;
 }
 
-void thread_pool_wait(thread_pool_t *tm)
-{
-    if (tm == NULL)
-        return;
-
-    tm->stop = true;
-    pthread_cond_broadcast(&(tm->work_cond));
-    for (int i = 0; i < tm->thread_cnt; i++)
-        pthread_join(tm->workers[i], nullptr);
+void ThreadPool::join() {
+    terminate = true;
+    pthread_cond_broadcast(&cond);
+    for (int i = 0; i < workers.size(); i++)
+        pthread_join(workers[i], nullptr);
 }
 
 
-#endif /* __TPOOL_H__ */
+#endif /* __THREAD_POOL_H__ */

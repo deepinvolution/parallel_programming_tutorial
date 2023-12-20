@@ -2,11 +2,17 @@
 #include <cassert>
 #include <cstring>
 #include <vector>
+#include <queue>
 
 #include "png.h"
 
 #define MAX_ITER 10000
 
+/*
+/
+/     Complex
+/
+*/
 template <typename T>
 class Complex;
 template <typename T>
@@ -50,6 +56,11 @@ Complex<T> operator*(Complex<T>& lhs, Complex<T>& rhs) {
                       static_cast<T>(2 * lhs.real * rhs.img));
 }
 
+/*
+/
+/     Mandelbrot Set
+/
+*/
 template <typename T>
 int mandelbrot_set(Complex<T> c0) {
     int iter_count = 0;
@@ -62,6 +73,11 @@ int mandelbrot_set(Complex<T> c0) {
     return iter_count;
 }
 
+/*
+/
+/     Write PNG
+/
+*/
 void write_png(const char* filename, const int width, const int height, const int* buffer) {
     FILE* fp = fopen(filename, "wb");
     assert(fp);

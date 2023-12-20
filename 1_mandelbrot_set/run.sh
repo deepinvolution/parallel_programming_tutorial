@@ -1,7 +1,7 @@
 #!/bin/sh
 
-example="example_omp"
-# example="example_pthread"
+# example="example_omp"
+example="example_pthread"
 num_threads=2
 left=-2
 right=2

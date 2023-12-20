@@ -1,12 +1,26 @@
 #include <cstdlib>
 #include <chrono>
-#include <pthread.h>
 #include "utils.hpp"
+#include "pthread_pool.hpp"
 
-void* print_thread_id(void* id) {
-    long pid = (long)id;
-    std::cout << pid << std::endl;
-    pthread_exit(NULL);
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+static const size_t num_items   = 50;
+
+void* worker(void *arg)
+{
+    int *val = (int*)arg;
+    int  old = *val;
+
+    *val += 1000;
+    printf("tid=%p, old=%d, val=%d\n", pthread_self(), old, *val);
+
+    if (*val%2)
+        usleep(100000);
+
+    return nullptr;
 }
 
 int main(int argc, char** argv) {
@@ -23,19 +37,17 @@ int main(int argc, char** argv) {
     double grid_width = (right - left) / width;
     double grid_height = (upper - lower) / height;
 
-    /* launch threads */
-    pthread_t workers[num_threads];
-    for(long id = 0; id < num_threads; id++) {
-        int ret =  pthread_create(&workers[id], NULL, print_thread_id, (void*)id);
-        if(ret != 0) {
-            printf("Error: pthread_create() failed\n");
-            exit(EXIT_FAILURE);
-        }
+    thread_pool_t* tm = thread_pool_create(num_threads);
+    int* vals = new int[num_items];
+
+    for (int i = 0; i < num_items; i++) {
+        vals[i] = i;
+        thread_pool_add_work(tm, worker, vals+i);
     }
 
-    /* terminate threads */
-    for(long id = 0; id < num_threads; id++) {
-        pthread_join(workers[id], NULL);
-    }
+    thread_pool_wait(tm);
+    thread_pool_destroy(tm);
+    delete vals;
+
     return 0;
 }

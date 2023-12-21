@@ -76,7 +76,8 @@ ThreadPool::ThreadPool(int num) {
 
     workers.resize(num);
     for (int i = 0; i < num; i++)
-        pthread_create(&workers[i], nullptr, &ThreadPool::thread_pool_worker, this);
+        pthread_create(&workers[i], nullptr,
+                       &ThreadPool::thread_pool_worker, this);
 }
 
 ThreadPool::~ThreadPool() {

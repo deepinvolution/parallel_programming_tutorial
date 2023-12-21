@@ -24,7 +24,11 @@ Complex<T> operator*(Complex<T>& lhs, Complex<T>& rhs);
 template <typename T>
 class Complex {
 public:
+    Complex() = default;
     Complex(T real, T img) : real(real), img(img) {}
+    Complex& operator=(const Complex& rhs) { real = rhs.real;
+                                             img = rhs.img;
+                                             return *this; }
     friend std::ostream& operator<<<T>(std::ostream& os, Complex<T>& rhs);
     friend Complex<T> operator+<T>(Complex<T>& lhs, Complex<T>& rhs);
     friend Complex<T> operator*<T>(Complex<T>& lhs, Complex<T>& rhs);

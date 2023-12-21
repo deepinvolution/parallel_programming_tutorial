@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     assert(image);
 
     /* mandelbrot set */
-    auto beg = std::chrono::high_resolution_clock::now();
+auto beg = std::chrono::high_resolution_clock::now();
     #pragma omp parallel for schedule(dynamic)
     for (int j = 0; j < height; ++j) {
         double y0 = j * grid_height + lower;
@@ -34,9 +34,9 @@ int main(int argc, char** argv) {
             image[j * width + i] = mandelbrot_set(Complex<double>{x0, y0});
         }
     }
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - beg);
-    std::cout << "Elapsed Time = " << duration.count() << "ms" << std::endl;
+auto end = std::chrono::high_resolution_clock::now();
+auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - beg);
+std::cout << "Elapsed Time = " << duration.count() << "ms" << std::endl;
 
     /* draw and cleanup */
     write_png(filename, width, height, image);

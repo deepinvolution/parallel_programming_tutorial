@@ -7,12 +7,21 @@
 
 typedef void* (*thread_func_t)(void* arg);
 
-// TODO: optimize data copy when:
-// (1) task creation (2) pop from queue
-typedef struct thread_pool_task {
-    thread_func_t func;
-    void* arg;
-} thread_pool_task_t;
+// TODO: optimize data copy when
+class ThreadTask {
+public:
+    ThreadTask() : _empty(true) {}
+    ThreadTask(thread_func_t func, void* arg) : _func(func),
+                                                _arg(arg),
+                                                _empty(false) {}
+    bool empty() { return _empty; }
+    void run() { _func(_arg); }
+
+private:
+    thread_func_t _func; // function
+    void* _arg; // function inputs
+    bool _empty; // function state
+};
 
 // Implement a producer-consumer thread pool class
 class ThreadPool {
@@ -25,9 +34,9 @@ public:
 private:
     // shared data
     std::vector<pthread_t> workers;
-    std::queue<thread_pool_task_t> tasks;
+    std::queue<ThreadTask> tasks;
 
-    // mutex and cond to protect shared data
+    // mutex and cond to protect task queue
     pthread_mutex_t mutex;
     pthread_cond_t cond;
 
@@ -40,27 +49,22 @@ private:
 
 void* ThreadPool::thread_pool_worker(void* arg) {
     ThreadPool* pool = (ThreadPool*)arg;
-    thread_pool_task_t task;
-
     while (true) {
         pthread_mutex_lock(&(pool->mutex));
 
         while (pool->tasks.empty() && !pool->terminate)
             pthread_cond_wait(&(pool->cond), &(pool->mutex));
 
-        bool get_empty_task = false;
-        if (pool->tasks.empty()) {
-            get_empty_task = true;
-        } else {
+        ThreadTask task;
+        if (!pool->tasks.empty()) {
             task = pool->tasks.front();
             pool->tasks.pop();
         }
 
         pthread_mutex_unlock(&(pool->mutex));
 
-        if (pool->terminate && get_empty_task) break;
-
-        if (!get_empty_task) task.func(task.arg);
+        if (pool->terminate && task.empty()) break;
+        if (!task.empty()) task.run();
     }
     pthread_exit(nullptr);
 }
@@ -82,17 +86,11 @@ ThreadPool::~ThreadPool() {
 
 bool ThreadPool::push(thread_func_t func, void *arg) {
     if (!func) return false;
-
-    thread_pool_task_t task;
-    task.func = func;
-    task.arg = arg;
-
+    ThreadTask task(func, arg);
     pthread_mutex_lock(&mutex);
     tasks.push(task);
     pthread_mutex_unlock(&mutex);
-
     pthread_cond_signal(&cond);
-
     return true;
 }
 
@@ -102,6 +100,5 @@ void ThreadPool::join() {
     for (int i = 0; i < workers.size(); i++)
         pthread_join(workers[i], nullptr);
 }
-
 
 #endif /* __THREAD_POOL_H__ */

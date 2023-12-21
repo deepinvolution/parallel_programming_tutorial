@@ -3,7 +3,6 @@
 #include <cstring>
 #include <vector>
 #include <queue>
-
 #include "png.h"
 
 #define MAX_ITER 10000
@@ -58,23 +57,6 @@ Complex<T> operator*(Complex<T>& lhs, Complex<T>& rhs) {
 
 /*
 /
-/     Mandelbrot Set
-/
-*/
-template <typename T>
-int mandelbrot_set(Complex<T> c0) {
-    int iter_count = 0;
-    Complex<T> c(0, 0);
-    while (c.size() <= 4.0 && iter_count < MAX_ITER) {
-        c = c * c;
-        c = c + c0;
-        ++iter_count;
-    }
-    return iter_count;
-}
-
-/*
-/
 /     Write PNG
 /
 */
@@ -111,4 +93,16 @@ void write_png(const char* filename, const int width, const int height, const in
     png_write_end(png_ptr, NULL);
     png_destroy_write_struct(&png_ptr, &info_ptr);
     fclose(fp);
+}
+
+template <typename T>
+int mandelbrot_set(Complex<T> c0) {
+    int iter_count = 0;
+    Complex<T> c(0, 0);
+    while (c.size() <= 4.0 && iter_count < MAX_ITER) {
+        c = c * c;
+        c = c + c0;
+        ++iter_count;
+    }
+    return iter_count;
 }

@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <chrono>
 #include "utils.hpp"
-#include "pthread_pool.hpp"
+#include "thread_pool.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,17 +9,15 @@
 
 static const size_t num_items = 50;
 
-void* test_func(void *arg)
-{
-    int *val = (int*)arg;
-    int  old = *val;
+struct package_t {
+    double real;
+    double img;
+    int iter;
+};
 
-    *val += 1000;
-    printf("tid=%p, old=%d, val=%d\n", pthread_self(), old, *val);
-
-    if (*val%2)
-        usleep(100000);
-
+void* wrapper_function(void* arg) {
+    package_t* pkg = (package_t*)arg;
+    pkg->iter = mandelbrot_set(Complex<double>(pkg->real, pkg->img));
     return nullptr;
 }
 
@@ -37,17 +35,38 @@ int main(int argc, char** argv) {
     double grid_width = (right - left) / width;
     double grid_height = (upper - lower) / height;
 
-    ThreadPool pool(num_threads);
-    int* vals = new int[num_items];
+    /* allocate memory for image */
+    int* image = (int*)malloc(width * height * sizeof(int));
+    assert(image);
 
-    for (int i = 0; i < num_items; i++) {
-        vals[i] = i;
-        pool.push(test_func, vals+i);
+auto beg = std::chrono::high_resolution_clock::now();
+
+    /* create thread pool and execute tasks */
+    std::vector<std::vector<package_t>> pkgs(height, std::vector<package_t>(width));
+    ThreadPool pool(num_threads);
+    for (int j = 0; j < height; ++j) {
+        double y0 = j * grid_height + lower;
+        for (int i = 0; i < width; ++i) {
+            double x0 = i * grid_width + left;
+            pkgs[j][i].real = x0;
+            pkgs[j][i].img = y0;
+            pool.push(wrapper_function, &pkgs[j][i]);
+        }
     }
 
+    /* wait for threads */
     pool.join();
+    for (int j = 0; j < height; ++j)
+        for (int i = 0; i < width; ++i)
+            image[j * width + i] = pkgs[j][i].iter;
 
-    delete vals;
+auto end = std::chrono::high_resolution_clock::now();
+auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - beg);
+std::cout << "Elapsed Time = " << duration.count() << "ms" << std::endl;
+
+    /* draw and cleanup */
+    write_png(filename, width, height, image);
+    free(image);
 
     return 0;
 }

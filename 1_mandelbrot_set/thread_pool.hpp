@@ -44,40 +44,16 @@ private:
     bool terminate;
 
     // opague function for threads' routine
-    static void* thread_pool_worker(void* arg);
+    static void* worker_routine(void* arg);
 };
 
-void* ThreadPool::thread_pool_worker(void* arg) {
-    ThreadPool* pool = (ThreadPool*)arg;
-    while (true) {
-        pthread_mutex_lock(&(pool->mutex));
-
-        while (pool->tasks.empty() && !pool->terminate)
-            pthread_cond_wait(&(pool->cond), &(pool->mutex));
-
-        ThreadTask task;
-        if (!pool->tasks.empty()) {
-            task = pool->tasks.front();
-            pool->tasks.pop();
-        }
-
-        pthread_mutex_unlock(&(pool->mutex));
-
-        if (pool->terminate && task.empty()) break;
-        if (!task.empty()) task.run();
-    }
-    pthread_exit(nullptr);
-}
-
 ThreadPool::ThreadPool(int num) {
-    workers.resize(num);
     pthread_mutex_init(&mutex, NULL);
     pthread_cond_init(&cond, NULL);
-
     workers.resize(num);
     for (int i = 0; i < num; i++)
         pthread_create(&workers[i], nullptr,
-                       &ThreadPool::thread_pool_worker, this);
+                       &ThreadPool::worker_routine, this);
 }
 
 ThreadPool::~ThreadPool() {
@@ -100,6 +76,28 @@ void ThreadPool::join() {
     pthread_cond_broadcast(&cond);
     for (int i = 0; i < workers.size(); i++)
         pthread_join(workers[i], nullptr);
+}
+
+void* ThreadPool::worker_routine(void* arg) {
+    ThreadPool* pool = (ThreadPool*)arg;
+    while (true) {
+        pthread_mutex_lock(&(pool->mutex));
+
+        while (pool->tasks.empty() && !pool->terminate)
+            pthread_cond_wait(&(pool->cond), &(pool->mutex));
+
+        ThreadTask task;
+        if (!pool->tasks.empty()) {
+            task = pool->tasks.front();
+            pool->tasks.pop();
+        }
+
+        pthread_mutex_unlock(&(pool->mutex));
+
+        if (pool->terminate && task.empty()) break;
+        if (!task.empty()) task.run();
+    }
+    pthread_exit(nullptr);
 }
 
 #endif /* __THREAD_POOL_H__ */

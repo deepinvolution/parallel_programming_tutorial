@@ -10,9 +10,11 @@ add_executable(
 find_package(OpenMP)
 target_link_libraries(example_omp PUBLIC png OpenMP::OpenMP_CXX)
 
-add_executable(
-  example_pthread example_pthread.cpp
-)
-find_package(Threads)
-target_compile_options(example_pthread PUBLIC "-pthread")
-target_link_libraries(example_pthread PUBLIC png)
+function(add_program_target TARGET_NAME)
+    add_executable(${TARGET_NAME} ${ARGN})
+    target_compile_options(${TARGET_NAME} PUBLIC "-pthread")
+    target_link_libraries(${TARGET_NAME} PUBLIC png)
+endfunction()
+
+add_program_target(example_pthread_no_opt example_pthread_no_opt.cpp)
+add_program_target(example_pthread_thread_pool example_pthread_thread_pool.cpp)

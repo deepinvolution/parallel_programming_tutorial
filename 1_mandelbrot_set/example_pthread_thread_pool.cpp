@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     int* image = (int*)malloc(width * height * sizeof(int));
     assert(image);
 
-auto beg = std::chrono::high_resolution_clock::now();
+    auto beg = std::chrono::high_resolution_clock::now();
 
     /* create thread pool and execute tasks */
     std::vector<package_t> pkgs(height);
@@ -64,9 +64,9 @@ auto beg = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < width; ++i)
             image[j * width + i] = pkgs[j].outputs[i];
 
-auto end = std::chrono::high_resolution_clock::now();
-auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - beg);
-std::cout << "Elapsed Time = " << duration.count() << "ms" << std::endl;
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - beg);
+    std::cout << "Elapsed Time = " << duration.count() << "ms" << std::endl;
 
     /* draw and cleanup */
     write_png(filename, width, height, image);
